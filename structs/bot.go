@@ -5,7 +5,6 @@
 	Поэтому в строке запроса, нужно указывать offset увеличенный на 1. Он как бы будет ждать нового обновления с
 	переданным offset'ом.
 	При этом, старые обновления будут утеряны.
-	curl -X POST -F "document=@report.xlsx" "https://api.telegram.org/bot6523339653:AAF1mrO7mTD0JBbV9vhie-FG4dmBBW6OlOI/sendDocument?chat_id=5495193096"
 */
 
 package structs
@@ -60,7 +59,6 @@ func (b *Bot) Go() {
 		// if Result array is empty then there is no new updates
 		if len(b.upd.Result) > 0 {
 			fmt.Println(b.upd.Result[0].Message.Text)
-			//fmt.Println(b.upd.Result[0].Callback_query.Data)
 
 			if b.upd.Result[0].Message.Text == "/start" {
 				b.sendTextMessage(b.upd.Result[0].Message.Chat.Id, "Привет, "+b.upd.Result[0].Message.From.First_name+"!")
@@ -208,24 +206,7 @@ func (b *Bot) getReport(usr *Users) {
 		if b.upd.Result[0].Callback_query.Data == "xls" {
 			b.db.getReport(b.answers[0], b.answers[1], usr.dbId)
 
-			file, _ := os.Open("reports/report.xlsx")
-			body := &bytes.Buffer{}
-			writer := multipart.NewWriter(body)
-			part, _ := writer.CreateFormFile("document", "reports/report.xlsx")
-			io.Copy(part, file)
-			writer.Close()
-
-			tmp_url := "https://api.telegram.org/bot" + os.Getenv("TOKEN") + "/sendDocument?chat_id=" +
-				strconv.Itoa(usr.chatId)
-			request, err := http.NewRequest(http.MethodPost, tmp_url, body)
-			if err != nil {
-				fmt.Println(err)
-			}
-			request.Header.Set("Content-Type", writer.FormDataContentType())
-			_, errr := client.Do(request)
-			if errr != nil {
-				fmt.Println(errr)
-			}
+			sendReport(usr, client)
 
 			b.resetUser(usr)
 			return
@@ -274,6 +255,27 @@ func (b *Bot) sendTextMessage(chat_id int, text string) {
 		strconv.Itoa(chat_id) + "&text=" + text
 	send_req, _ := http.NewRequest(http.MethodPost, tmp_url, nil)
 	client.Do(send_req)
+}
+
+func sendReport(usr *Users, client http.Client) {
+	file, _ := os.Open("reports/report.xlsx")
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("document", "reports/report.xlsx")
+	io.Copy(part, file)
+	writer.Close()
+
+	tmp_url := "https://api.telegram.org/bot" + os.Getenv("TOKEN") + "/sendDocument?chat_id=" +
+		strconv.Itoa(usr.chatId)
+	request, err := http.NewRequest(http.MethodPost, tmp_url, body)
+	if err != nil {
+		fmt.Println(err)
+	}
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	_, errr := client.Do(request)
+	if errr != nil {
+		fmt.Println(errr)
+	}
 }
 
 func (b *Bot) getHelp(filepath string, result chan string) {
